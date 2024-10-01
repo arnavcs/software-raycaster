@@ -69,7 +69,7 @@ function dda (map, pos, ray) {
   }
 }
 
-function renderCol (ctx, col, map, camera, screen) {
+function renderCol (ctx, col, map, camera, screen, options) {
   let cameraX = 2 * col / (screen.width - 1) - 1;
   let ray = vvplus(camera.dir, svtimes(cameraX, camera.plane));
   let collision = dda(map, camera.pos, ray);
@@ -77,17 +77,17 @@ function renderCol (ctx, col, map, camera, screen) {
   for (let row = 0; row < screen.height; row++) {
     let colour = [0, 0, 0];
     if (Math.abs(row - (screen.height - 1) / 2) < wallHeight / 2) {
-      colour = [0, 0, 255];
+      colour = [0, 0, 255 - options.fade * collision];
     }
     putPixel(ctx, col, row, colourToString(colour));
   }
 }
 
-function render (map, camera, screen) {
+function render (map, camera, screen, options) {
   const ctx = screen.getContext("2d");
 
   for (let col = 0; col < screen.width; col++) {
-    renderCol(ctx, col, map, camera, screen);
+    renderCol(ctx, col, map, camera, screen, options);
   }
 }
 
@@ -103,5 +103,6 @@ window.onload = function () {
         ,{pos: [1.5, 1.5],
           dir: [1, 2],
           plane: [2, -1]}
-        ,document.getElementById("screen"));
+        ,document.getElementById("screen")
+        ,{fade: 20});
 }
