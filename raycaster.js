@@ -42,7 +42,7 @@ function putPixel (ctx, x, y, c) {
 }
 
 // digital differential analysis
-// returns [distance to collision or Infinity, direction into wall collided]
+// returns [distance to collision or Infinity, direction of wall collided]
 function dda (map, pos, ray) {
   let currentSquare = [Math.floor(pos[0]), Math.floor(pos[1])];
 
@@ -72,12 +72,12 @@ function dda (map, pos, ray) {
     if (nextX < nextY) {
       distance = nextX;
       nextX += stepX;
-      direction = ray[0] < 0 ? [-1, 0] : [1, 0];
+      direction = ray[0] < 0 ? [1, 0] : [-1, 0];
       currentSquare[0] += ray[0] < 0 ? -1 : 1;
     } else {
       distance = nextY;
       nextY += stepY;
-      direction = ray[1] < 0 ? [0, -1] : [0, 1];
+      direction = ray[1] < 0 ? [0, 1] : [0, -1];
       currentSquare[1] += ray[1] < 0 ? -1 : 1;
     }
   }
@@ -85,11 +85,22 @@ function dda (map, pos, ray) {
 
 function renderCol (ctx, col, map, camera, screen, options) {
   let cameraX = 2 * col / (screen.width - 1) - 1; // in [-1, 1]
-  let ray = camera.plane 
-          ? vvplus(camera.dir, svtimes(cameraX, camera.plane)) 
-          : vrotate(camera.dir, cameraX * camera.range / 2); 
+
+  let ray;
+  let planeDistScale;
+  if (options.cyclindrical) {
+    let offset = cameraX * camera.fov / 2;
+    ray = vrotate(camera.dir, offset);
+    planeDistScale = Math.cos(Math.PI * Math.abs(offset) / 180);
+  } else {
+    let cameraPlane = svtimes(Math.tan(Math.PI * camera.fov / 360), vrotate(camera.dir, 90));
+    ray = vvplus(camera.dir, svtimes(cameraX, cameraPlane));
+    planeDistScale = vdot(ray, camera.dir) / (vmagnitude(ray) * vmagnitude(camera.dir));
+  }
+
   let collision = dda(map, camera.pos, ray);
-  let wallHeight = screen.height / collision[0];
+
+  let wallHeight = screen.height / (collision[0] * (options.planeDist ? planeDistScale : 1));
   for (let row = 0; row < screen.height; row++) {
     let colour = [0, 0, 0];
     if (Math.abs(row - (screen.height - 1) / 2) < wallHeight / 2) {
@@ -100,7 +111,7 @@ function renderCol (ctx, col, map, camera, screen, options) {
   }
 }
 
-// camera has pos: vector, dir: vector, and (range: angle | plane: vector)
+// camera has pos: vector, dir: vector, and fov: angle
 function render (map, camera, screen, options) {
   const ctx = screen.getContext("2d");
 
@@ -110,18 +121,20 @@ function render (map, camera, screen, options) {
 }
 
 window.onload = function () {
-  render([[1, 1, 1, 1, 1, 1, 1, 1],
-          [1, 0, 0, 0, 0, 0, 0, 1],
+  render([[0, 1, 0, 1, 1, 1, 1, 1],
+          [0, 1, 0, 0, 0, 0, 0, 1],
           [1, 0, 0, 0, 0, 0, 0, 1],
           [1, 0, 0, 0, 0, 0, 0, 1],
           [1, 0, 1, 1, 0, 0, 0, 1],
           [1, 0, 0, 1, 0, 0, 0, 1],
           [1, 0, 0, 0, 0, 0, 0, 1],
           [1, 1, 1, 1, 1, 1, 1, 1]]
-        ,{pos: [1.5, 1.5],
+        ,{pos: [1.1, 1.5],
           dir: [1, 2],
-          range: 80}
+          fov: 90}
         ,document.getElementById("screen")
         ,{fade: 20,
-          light: [30, -30]});
+          light: [30, -30], // the vector towards the light source
+          cyclindrical: false,
+          planeDist: true});
 }
