@@ -90,6 +90,10 @@ function dda (map, pos, ray) {
   }
 }
 
+function darkenByDist (colour, dist, options) {
+  return svtimes(clamp(1 - dist / options.viewDist, 0, 1), colour);
+}
+
 function renderCol (ctx, col, map, camera, screen, options) {
   let cameraX = 2 * col / (screen.width - 1) - 1; // in [-1, 1]
 
@@ -108,12 +112,19 @@ function renderCol (ctx, col, map, camera, screen, options) {
   let collision = dda(map, camera.pos, ray);
 
   let wallHeight = screen.height / (collision[0] * (options.perpDist ? perpDistScale : 1));
+
   for (let row = 0; row < screen.height; row++) {
-    let colour = [0, 0, 0];
-    if (Math.abs(row - (screen.height - 1) / 2) < wallHeight / 2) {
+    let colour;
+    let yoffset = Math.abs(row - (screen.height - 1) / 2);
+    if (yoffset < wallHeight / 2) {
       colour = svtimes((1 + options.darkest) / 2 + (1 - options.darkest) / 2 * vdot(collision[1], options.light), 
                        options.wallColour);
-      colour = svtimes(clamp(1 - collision[0] / options.viewDist, 0, 1), colour);
+      colour = darkenByDist(colour, collision[0], options);
+    } else {
+      imaginaryWallHeight = yoffset * 2;
+      colour = darkenByDist(options.roomColour, 
+                            screen.height / (imaginaryWallHeight * (options.perpDist ? perpDistScale : 1)), 
+                            options);
     }
     putPixel(ctx, col, row, colourToString(colour));
   }
@@ -133,22 +144,23 @@ window.onload = function () {
    [[1, 0, 1, 1, 1, 1, 1, 1],
     [1, 0, 0, 0, 0, 0, 0, 1],
     [1, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 1, 0, 0, 0, 0, 1],
-    [1, 0, 0, 1, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 1, 1, 0, 0, 0, 1],
     [1, 0, 0, 1, 0, 0, 0, 1],
     [1, 0, 0, 0, 0, 0, 0, 1],
     [1, 1, 1, 1, 1, 1, 1, 1]],
    {
-     pos: [1.5, 1.5],
-     dir: vnormalize([5, 3]),
-     fov: 110
+     pos: [1.1, 1.5],
+     dir: vnormalize([2, 3]),
+     fov: 90
    },
    document.getElementById("screen"),
    {
      viewDist: 8, // distance till stop of light
      light: vnormalize([1, -2]), // the vector towards the light source
-     darkest: 0.25, 
-     wallColour: [100, 100, 255],
+     darkest: 0.4, 
+     wallColour: [200, 150, 55],
+     roomColour: [100, 100, 100],
      cyclindrical: false,
      perpDist: true
    });
