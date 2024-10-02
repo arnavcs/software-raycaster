@@ -111,7 +111,8 @@ function renderCol (ctx, col, map, camera, screen, options) {
   for (let row = 0; row < screen.height; row++) {
     let colour = [0, 0, 0];
     if (Math.abs(row - (screen.height - 1) / 2) < wallHeight / 2) {
-      colour = vvplus(svtimes(vdot(collision[1], options.light), [1, 1, 1]), options.wallColour);
+      colour = svtimes((1 + options.darkest) / 2 + (1 - options.darkest) / 2 * vdot(collision[1], options.light), 
+                       options.wallColour);
       colour = svtimes(clamp(1 - collision[0] / options.viewDist, 0, 1), colour);
     }
     putPixel(ctx, col, row, colourToString(colour));
@@ -128,21 +129,27 @@ function render (map, camera, screen, options) {
 }
 
 window.onload = function () {
-  render([[1, 0, 1, 1, 1, 1, 1, 1],
-          [1, 0, 0, 0, 0, 0, 0, 1],
-          [1, 0, 0, 0, 0, 0, 0, 1],
-          [1, 0, 1, 0, 0, 0, 0, 1],
-          [1, 0, 0, 1, 0, 0, 0, 1],
-          [1, 0, 0, 1, 0, 0, 0, 1],
-          [1, 0, 0, 0, 0, 0, 0, 1],
-          [1, 1, 1, 1, 1, 1, 1, 1]]
-        ,{pos: [1.5, 1.5],
-          dir: vnormalize([5, 3]),
-          fov: 110}
-        ,document.getElementById("screen")
-        ,{viewDist: 5, // distance till stop of light
-          light: vnormalize([-1, -2]), // the vector towards the light source
-          wallColour: [100, 100, 255],
-          cyclindrical: false,
-          perpDist: true});
+  render(
+   [[1, 0, 1, 1, 1, 1, 1, 1],
+    [1, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 1, 0, 0, 0, 0, 1],
+    [1, 0, 0, 1, 0, 0, 0, 1],
+    [1, 0, 0, 1, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1]],
+   {
+     pos: [1.5, 1.5],
+     dir: vnormalize([5, 3]),
+     fov: 110
+   },
+   document.getElementById("screen"),
+   {
+     viewDist: 8, // distance till stop of light
+     light: vnormalize([1, -2]), // the vector towards the light source
+     darkest: 0.25, 
+     wallColour: [100, 100, 255],
+     cyclindrical: false,
+     perpDist: true
+   });
 }
