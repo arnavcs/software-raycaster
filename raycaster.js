@@ -105,8 +105,8 @@ function renderCol (ctx, col, map, camera, screen, options) {
     perpDistScale = Math.cos(Math.PI * Math.abs(offset) / 180);
   } else {
     let cameraPlane = svtimes(Math.tan(Math.PI * camera.fov / 360), vrotate(camera.dir, 90));
-    ray = vvplus(camera.dir, svtimes(cameraX, cameraPlane));
-    perpDistScale = vdot(ray, camera.dir) / (vmagnitude(ray) * vmagnitude(camera.dir));
+    ray = vnormalize(vvplus(camera.dir, svtimes(cameraX, cameraPlane)));
+    perpDistScale = vdot(ray, camera.dir) / vmagnitude(camera.dir);
   }
 
   let collision = dda(map, camera.pos, ray);
@@ -116,16 +116,25 @@ function renderCol (ctx, col, map, camera, screen, options) {
   for (let row = 0; row < screen.height; row++) {
     let colour;
     let yoffset = Math.abs(row - (screen.height - 1) / 2);
+
     if (yoffset < wallHeight / 2) {
       colour = svtimes((1 + options.darkest) / 2 + (1 - options.darkest) / 2 * vdot(collision[1], options.light), 
                        options.wallColour);
       colour = darkenByDist(colour, collision[0], options);
     } else {
-      imaginaryWallHeight = yoffset * 2;
-      colour = darkenByDist(options.roomColour, 
-                            screen.height / (imaginaryWallHeight * (options.perpDist ? perpDistScale : 1)), 
-                            options);
+      let imaginaryWallHeight = yoffset * 2;
+      let dist = screen.height / (imaginaryWallHeight * (options.perpDist ? perpDistScale : 1));
+
+      if (options.roomTiling) {
+        let targetSquare = vvplus(svtimes(dist, ray), camera.pos).map(Math.floor); 
+        colour = svtimes((targetSquare[0] + targetSquare[1]) % 2 == 1 ? 1 : 0.75, options.roomColour);
+      } else {
+        colour = options.roomColour;
+      }
+
+      colour = darkenByDist(colour, dist, options);
     }
+
     putPixel(ctx, col, row, colourToString(colour));
   }
 }
@@ -150,7 +159,7 @@ window.onload = function () {
     [1, 0, 0, 0, 0, 0, 0, 1],
     [1, 1, 1, 1, 1, 1, 1, 1]],
    {
-     pos: [1.1, 1.5],
+     pos: [1.2, 1.5],
      dir: vnormalize([2, 3]),
      fov: 90
    },
@@ -158,9 +167,10 @@ window.onload = function () {
    {
      viewDist: 8, // distance till stop of light
      light: vnormalize([1, -2]), // the vector towards the light source
-     darkest: 0.4, 
+     darkest: 0.5, 
      wallColour: [200, 150, 55],
      roomColour: [100, 100, 100],
+     roomTiling: true,
      cyclindrical: false,
      perpDist: true
    });
