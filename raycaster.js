@@ -16,6 +16,10 @@ function vmagnitude (vector) {
   return Math.sqrt(vector[0] * vector[0] + vector[1] * vector[1])
 }
 
+function vnormalize (vector) {
+  return svtimes(1/vmagnitude(vector), vector);
+}
+
 function vrotate (vector, angle) {
   angle = Math.PI * -angle / 180;
   return [vector[0] * Math.cos(angle) - vector[1] * Math.sin(angle)
@@ -31,9 +35,12 @@ function mapAt (map, idx) {
   return map[map.length - 1 - idx[1]][idx[0]];
 }
 
+function clamp (val, bottom, top) {
+  return Math.max(Math.min(val, top), bottom);
+}
+
 function colourToString (colour) {
-  let clamp = (a) => (Math.max(Math.min(a, 255), 0))
-  return "rgb(" + clamp(colour[0]) + ", " + clamp(colour[1]) + ", " + clamp(colour[2]) + ")";
+  return "rgb(" + clamp(colour[0], 0, 255) + ", " + clamp(colour[1], 0, 255) + ", " + clamp(colour[2], 0, 255) + ")";
 }
 
 function putPixel (ctx, x, y, c) {
@@ -87,25 +94,25 @@ function renderCol (ctx, col, map, camera, screen, options) {
   let cameraX = 2 * col / (screen.width - 1) - 1; // in [-1, 1]
 
   let ray;
-  let planeDistScale;
+  let perpDistScale;
   if (options.cyclindrical) {
     let offset = cameraX * camera.fov / 2;
     ray = vrotate(camera.dir, offset);
-    planeDistScale = Math.cos(Math.PI * Math.abs(offset) / 180);
+    perpDistScale = Math.cos(Math.PI * Math.abs(offset) / 180);
   } else {
     let cameraPlane = svtimes(Math.tan(Math.PI * camera.fov / 360), vrotate(camera.dir, 90));
     ray = vvplus(camera.dir, svtimes(cameraX, cameraPlane));
-    planeDistScale = vdot(ray, camera.dir) / (vmagnitude(ray) * vmagnitude(camera.dir));
+    perpDistScale = vdot(ray, camera.dir) / (vmagnitude(ray) * vmagnitude(camera.dir));
   }
 
   let collision = dda(map, camera.pos, ray);
 
-  let wallHeight = screen.height / (collision[0] * (options.planeDist ? planeDistScale : 1));
+  let wallHeight = screen.height / (collision[0] * (options.perpDist ? perpDistScale : 1));
   for (let row = 0; row < screen.height; row++) {
     let colour = [0, 0, 0];
     if (Math.abs(row - (screen.height - 1) / 2) < wallHeight / 2) {
-      colour = [0, 0, 255 - options.fade * collision[0]];
-      colour = vvplus(svtimes(vdot(collision[1], options.light), [1, 1, 1]), colour)
+      colour = vvplus(svtimes(vdot(collision[1], options.light), [1, 1, 1]), options.wallColour);
+      colour = svtimes(clamp(1 - collision[0] / options.viewDist, 0, 1), colour);
     }
     putPixel(ctx, col, row, colourToString(colour));
   }
@@ -121,20 +128,21 @@ function render (map, camera, screen, options) {
 }
 
 window.onload = function () {
-  render([[0, 1, 0, 1, 1, 1, 1, 1],
-          [0, 1, 0, 0, 0, 0, 0, 1],
+  render([[1, 0, 1, 1, 1, 1, 1, 1],
           [1, 0, 0, 0, 0, 0, 0, 1],
           [1, 0, 0, 0, 0, 0, 0, 1],
-          [1, 0, 1, 1, 0, 0, 0, 1],
+          [1, 0, 1, 0, 0, 0, 0, 1],
+          [1, 0, 0, 1, 0, 0, 0, 1],
           [1, 0, 0, 1, 0, 0, 0, 1],
           [1, 0, 0, 0, 0, 0, 0, 1],
           [1, 1, 1, 1, 1, 1, 1, 1]]
-        ,{pos: [1.1, 1.5],
-          dir: [1, 2],
-          fov: 90}
+        ,{pos: [1.5, 1.5],
+          dir: vnormalize([5, 3]),
+          fov: 110}
         ,document.getElementById("screen")
-        ,{fade: 20,
-          light: [30, -30], // the vector towards the light source
+        ,{viewDist: 5, // distance till stop of light
+          light: vnormalize([-1, -2]), // the vector towards the light source
+          wallColour: [100, 100, 255],
           cyclindrical: false,
-          planeDist: true});
+          perpDist: true});
 }
