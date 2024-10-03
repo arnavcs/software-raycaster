@@ -32,6 +32,7 @@ function mapHas (map, idx) {
 }
 
 function mapAt (map, idx) {
+  if (!mapHas(map, idx)) return 0;
   return map[map.length - 1 - idx[1]][idx[0]];
 }
 
@@ -49,7 +50,7 @@ function putPixel (ctx, x, y, c) {
 }
 
 // digital differential analysis
-// returns [distance to collision or Infinity, direction of wall collided]
+// returns [distance to collision or Infinity, direction of wall collided, collision wall type]
 function dda (map, pos, ray) {
   let currentSquare = [Math.floor(pos[0]), Math.floor(pos[1])];
 
@@ -69,11 +70,11 @@ function dda (map, pos, ray) {
 
   while (true) {
     if (!mapHas(map, currentSquare)) {
-      return [Infinity, [0, 0]];
+      return [Infinity, [0, 0], 0];
     }
 
-    if (mapAt(map, currentSquare)) {
-      return [vmagnitude(ray) * distance, direction];
+    if (mapAt(map, currentSquare) > 0) {
+      return [vmagnitude(ray) * distance, direction, mapAt(map, currentSquare)];
     }
 
     if (nextX < nextY) {
@@ -106,11 +107,11 @@ function renderCol (ctx, col, map, camera, screen, options) {
   } else {
     let cameraPlane = svtimes(Math.tan(Math.PI * camera.fov / 360), vrotate(camera.dir, 90));
     ray = vnormalize(vvplus(camera.dir, svtimes(cameraX, cameraPlane)));
-    perpDistScale = vdot(ray, camera.dir) / vmagnitude(camera.dir);
+    perpDistScale = vdot(ray, camera.dir);
   }
+  perpDistScale = Math.abs(perpDistScale);
 
   let collision = dda(map, camera.pos, ray);
-
   let wallHeight = screen.height / (collision[0] * (options.perpDist ? perpDistScale : 1));
 
   for (let row = 0; row < screen.height; row++) {
@@ -119,19 +120,17 @@ function renderCol (ctx, col, map, camera, screen, options) {
 
     if (yoffset < wallHeight / 2) {
       colour = svtimes((1 + options.darkest) / 2 + (1 - options.darkest) / 2 * vdot(collision[1], options.light), 
-                       options.wallColour);
+                       options.wallColours[-1 + collision[2]]);
       colour = darkenByDist(colour, collision[0], options);
     } else {
       let imaginaryWallHeight = yoffset * 2;
       let dist = screen.height / (imaginaryWallHeight * (options.perpDist ? perpDistScale : 1));
 
-      if (options.roomTiling) {
-        let targetSquare = vvplus(svtimes(dist, ray), camera.pos).map(Math.floor); 
-        colour = svtimes((targetSquare[0] + targetSquare[1]) % 2 == 1 ? 1 : 0.75, options.roomColour);
-      } else {
-        colour = options.roomColour;
-      }
-
+      let targetSquare = vvplus(svtimes(dist, ray), camera.pos).map(Math.floor); 
+      if (row >= screen.height / 2 && mapAt(map, targetSquare) < 0)
+        colour = options.floorColours[-1 - mapAt(map, targetSquare)];
+      else
+        colour = options.tilingColours[(targetSquare[0] + targetSquare[1]) % options.tilingColours.length];
       colour = darkenByDist(colour, dist, options);
     }
 
@@ -150,14 +149,14 @@ function render (map, camera, screen, options) {
 
 window.onload = function () {
   render(
-   [[1, 0, 1, 1, 1, 1, 1, 1],
-    [1, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 1, 1, 0, 0, 0, 1],
-    [1, 0, 0, 1, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1]],
+   [[ 1,  0,  1,  1,  1,  1,  1,  1],
+    [ 1,  0,  2,  0,  0,  0,  0,  1],
+    [ 1, -2, -1,  0,  0,  0,  0,  1],
+    [ 1,  0,  2,  0,  0,  0,  0,  1],
+    [ 1,  0,  1,  1,  0,  0,  0,  1],
+    [ 1,  0,  0,  1,  0,  0,  0,  1],
+    [ 1,  0,  0,  0,  0,  0,  0,  1],
+    [ 1,  1,  1,  1,  1,  1,  1,  1]],
    {
      pos: [1.2, 1.5],
      dir: vnormalize([2, 3]),
@@ -168,9 +167,9 @@ window.onload = function () {
      viewDist: 8, // distance till stop of light
      light: vnormalize([1, -2]), // the vector towards the light source
      darkest: 0.5, 
-     wallColour: [200, 150, 55],
-     roomColour: [100, 100, 100],
-     roomTiling: true,
+     wallColours: [[200, 150, 55], [100, 20, 100]],
+     floorColours: [[150, 200, 0], [20, 55, 200]],
+     tilingColours: [[100, 100, 100], [75, 75, 75]],
      cyclindrical: false,
      perpDist: true
    });
