@@ -40,7 +40,13 @@ function clamp (val, bottom, top) {
   return Math.max(Math.min(val, top), bottom);
 }
 
-function colourToString (colour) {
+function addAlpha (colour) {
+  return [colour[0], colour[1], colour[2], 255];
+}
+
+function colourToString (colour, options) {
+  let alpha = clamp(colour[3] / 255, 0, 1);
+  colour = vvplus(svtimes(1 - alpha, options.zeroColour), svtimes(alpha, colour))
   return "rgb(" + clamp(colour[0], 0, 255) + ", " + clamp(colour[1], 0, 255) + ", " + clamp(colour[2], 0, 255) + ")";
 }
 
@@ -91,8 +97,13 @@ function dda (map, pos, ray) {
   }
 }
 
-function darkenByDist (colour, dist, options) {
-  return svtimes(clamp(1 - dist / options.viewDist, 0, 1), colour);
+function darkenBy (scale, colour) {
+  colour[3] *= scale;
+  return colour;
+}
+
+function darkenByDist (dist, colour, options) {
+  return darkenBy(clamp(1 - dist / options.viewDist, 0, 1), colour);
 }
 
 function renderCol (ctx, col, map, camera, screen, options) {
@@ -119,22 +130,22 @@ function renderCol (ctx, col, map, camera, screen, options) {
     let yoffset = Math.abs(row - (screen.height - 1) / 2);
 
     if (yoffset < wallHeight / 2) {
-      colour = svtimes((1 + options.darkest) / 2 + (1 - options.darkest) / 2 * vdot(collision[1], options.light), 
-                       options.wallColours[-1 + collision[2]]);
-      colour = darkenByDist(colour, collision[0], options);
+      colour = darkenBy((1 + options.darkest) / 2 + (1 - options.darkest) / 2 * vdot(collision[1], options.light), 
+                        addAlpha(options.wallColours[-1 + collision[2]]));
+      colour = darkenByDist(collision[0], colour, options);
     } else {
       let imaginaryWallHeight = yoffset * 2;
       let dist = screen.height / (imaginaryWallHeight * (options.perpDist ? perpDistScale : 1));
 
       let targetSquare = vvplus(svtimes(dist, ray), camera.pos).map(Math.floor); 
       if (row >= screen.height / 2 && mapAt(map, targetSquare) < 0)
-        colour = options.floorColours[-1 - mapAt(map, targetSquare)];
+        colour = addAlpha(options.floorColours[-1 - mapAt(map, targetSquare)]);
       else
-        colour = options.tilingColours[(targetSquare[0] + targetSquare[1]) % options.tilingColours.length];
-      colour = darkenByDist(colour, dist, options);
+        colour = addAlpha(options.tilingColours[(targetSquare[0] + targetSquare[1]) % options.tilingColours.length]);
+      colour = darkenByDist(dist, colour, options);
     }
 
-    putPixel(ctx, col, row, colourToString(colour));
+    putPixel(ctx, col, row, colourToString(colour, options));
   }
 }
 
@@ -151,14 +162,14 @@ window.onload = function () {
   render(
    [[ 1,  0,  1,  1,  1,  1,  1,  1],
     [ 1,  0,  2,  0,  0,  0,  0,  1],
-    [ 1, -2, -1,  0,  0,  0,  0,  1],
-    [ 1,  0,  2,  0,  0,  0,  0,  1],
+    [ 1, -1, -1, -1, -2,  0,  0,  1],
+    [ 1,  0,  2, -2, -2,  0,  0,  1],
     [ 1,  0,  1,  1,  0,  0,  0,  1],
     [ 1,  0,  0,  1,  0,  0,  0,  1],
     [ 1,  0,  0,  0,  0,  0,  0,  1],
     [ 1,  1,  1,  1,  1,  1,  1,  1]],
    {
-     pos: [1.2, 1.5],
+     pos: [1.1, 1.5],
      dir: vnormalize([2, 3]),
      fov: 90
    },
@@ -167,9 +178,10 @@ window.onload = function () {
      viewDist: 8, // distance till stop of light
      light: vnormalize([1, -2]), // the vector towards the light source
      darkest: 0.5, 
-     wallColours: [[200, 150, 55], [100, 20, 100]],
-     floorColours: [[150, 200, 0], [20, 55, 200]],
-     tilingColours: [[100, 100, 100], [75, 75, 75]],
+     wallColours: [[118, 131, 74], [156, 73, 65]],
+     floorColours: [[70, 146, 158], [190, 210, 179]],
+     tilingColours: [[196, 152, 83], [158, 112, 60]],
+     zeroColour: svtimes(0.5, [61, 83, 79]),
      cyclindrical: false,
      perpDist: true
    });
