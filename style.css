@@ -1,0 +1,21 @@
+body * {
+  vertical-align: middle;
+}
+
+input {
+  margin: 5px;
+  margin-left: 0px;
+  margin-right: 20px;
+}
+
+#map {
+  border-collapse: collapse;
+}
+
+#map td {
+  border: 1px solid;
+  width: 20px;
+  height: 20px;
+  text-align: center;
+}
+

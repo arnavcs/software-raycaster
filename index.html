@@ -5,9 +5,48 @@
   <title>Software Raycaster</title>
   <script src="./mapmaking.js"></script>
   <script src="./raycaster.js"></script>
+  <link rel="stylesheet" href="./style.css"></link>
  </head>
  <body>
   <noscript>Sorry, this webpage requires JavaScript.</noscript>
+  <h1>Software Raycaster Playground</h1>
+  <hr />
+   Map width: <input type="number" id="map-width" value="10">
+   Map height: <input type="number" id="map-height" value="10">
+   <input type="button" onclick="newMap()" value="New Map">
+  <hr />
+   Wall colour 1: <input type="color" id="wall-1" value="#9fb265">
+   Wall colour 2: <input type="color" id="wall-2" value="#e4bf8b">
+   Wall colour 3: <input type="color" id="wall-3" value="#b5bab6">
+   <br />
+   Floor colour 1: <input type="color" id="floor-1" value="#c75f56">
+   Floor colour 2: <input type="color" id="floor-2" value="#596fa1">
+   <br />
+   Void colour: <input type="color" id="void" value="#342529">
+   <br />
+   Ambient light percentage: <input type="number" id="ambient-light" value="60">
+   Light heading (degrees): <input type="number" id="light-heading" value="120">
+  <hr />
+   Camera position x: <input type="number" id="camera-x" value="0.5">
+   Camera position y: <input type="number" id="camera-y" value="0.5">
+   Camera heading (degrees): <input type="number" id="camera-heading" value="45">
+   <br />
+   Field of view (degrees): <input type="number" id="fov" value="90">
+   View distance: <input type="number" id="view-dist" value="10">
+  <hr />
+   Click a square to cycle through wall options (0 is no wall). Colours do not represent rendered wall colours.
+   <br />
+   <table id="map"></table>
+  <hr />
+   Dithering: <input type="checkbox" id="dither">
+   Cylindrical casting: <input type="checkbox" id="cyclindrical">
+   Unprojected distances (fisheye): <input type="checkbox" id="fisheye">
+   <br />
+   Render width: <input type="number" id="render-width" value="960">
+   Render height: <input type="number" id="render-height" value="480">
+   <br />
+   <input type="button" onclick="renderScene()" value="Render Scene">
+  <hr />
   <canvas id="screen" width="960" height="480"></canvas>
  </body>
 </html>

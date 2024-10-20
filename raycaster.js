@@ -1,5 +1,13 @@
 console.log("loaded raycaster")
 
+function clamp (val, bottom, top) {
+  return Math.max(Math.min(val, top), bottom);
+}
+
+/*********************/
+/* vector operations */
+/*********************/
+
 function svtimes (scalar, vector) {
   return vector.map(a => scalar * a);
 }
@@ -26,6 +34,10 @@ function vrotate (vector, angle) {
          ,vector[0] * Math.sin(angle) + vector[1] * Math.cos(angle)];
 }
 
+/******************/
+/* map operations */
+/******************/
+
 function mapHas (map, idx) {
   return 0 <= idx[1] && idx[1] < map.length
       && 0 <= idx[0] && idx[0] < map[map.length - 1 - idx[1]].length;
@@ -36,11 +48,11 @@ function mapAt (map, idx) {
   return map[map.length - 1 - idx[1]][idx[0]];
 }
 
-function clamp (val, bottom, top) {
-  return Math.max(Math.min(val, top), bottom);
-}
+/*********************/
+/* colour operations */
+/*********************/
 
-function addAlpha (colour) {
+function resetAlpha (colour) {
   return [colour[0], colour[1], colour[2], 255];
 }
 
@@ -50,10 +62,38 @@ function colourToString (colour, options) {
   return "rgb(" + clamp(colour[0], 0, 255) + ", " + clamp(colour[1], 0, 255) + ", " + clamp(colour[2], 0, 255) + ")";
 }
 
-function putPixel (ctx, x, y, c) {
-  ctx.fillStyle = c;
+function ditherAlpha (xr, yr, alpha) {
+  let thresholdMat = [[ 0,  8,  2, 10],
+                      [12,  4, 14,  6],
+                      [ 3, 11,  1,  9],
+                      [15,  7, 13,  5]].map(a => a.map(b => (b - 15 / 2) / 16));
+  return (thresholdMat[yr][xr] + alpha / 255 > 0.5) ? 1 : 0;
+}
+
+function darkenBy (scale, colour) {
+  colour[3] *= scale;
+  return colour;
+}
+
+function darkenByDist (dist, colour, options) {
+  return darkenBy(clamp(1 - dist / options.viewDist, 0, 1), colour);
+}
+
+/******************/
+/* canvas drawing */
+/******************/
+
+function putPixel (ctx, x, y, colour, options) {
+  if (options.dithering) {
+    colour = ditherAlpha(x % 4, y % 4, colour[3]) ? resetAlpha(colour) : resetAlpha(options.zeroColour);
+  }
+  ctx.fillStyle = colourToString(colour, options);
   ctx.fillRect(x, y, 1, 1);
 }
+
+/**************/
+/* raycasting */
+/**************/
 
 // digital differential analysis
 // returns [distance to collision or Infinity, direction of wall collided, collision wall type]
@@ -97,15 +137,6 @@ function dda (map, pos, ray) {
   }
 }
 
-function darkenBy (scale, colour) {
-  colour[3] *= scale;
-  return colour;
-}
-
-function darkenByDist (dist, colour, options) {
-  return darkenBy(clamp(1 - dist / options.viewDist, 0, 1), colour);
-}
-
 function renderCol (ctx, col, map, camera, screen, options) {
   let cameraX = 2 * col / (screen.width - 1) - 1; // in [-1, 1]
 
@@ -130,22 +161,23 @@ function renderCol (ctx, col, map, camera, screen, options) {
     let yoffset = Math.abs(row - (screen.height - 1) / 2);
 
     if (yoffset < wallHeight / 2) {
+      // calculate wall colour
       colour = darkenBy((1 + options.darkest) / 2 + (1 - options.darkest) / 2 * vdot(collision[1], options.light), 
-                        addAlpha(options.wallColours[-1 + collision[2]]));
+                        resetAlpha(options.wallColours[-1 + collision[2]]));
       colour = darkenByDist(collision[0], colour, options);
     } else {
+      // calculate floor colour based off if there was an imaginary wall at that location
       let imaginaryWallHeight = yoffset * 2;
       let dist = screen.height / (imaginaryWallHeight * (options.perpDist ? perpDistScale : 1));
 
       let targetSquare = vvplus(svtimes(dist, ray), camera.pos).map(Math.floor); 
-      if (row >= screen.height / 2 && mapAt(map, targetSquare) < 0)
-        colour = addAlpha(options.floorColours[-1 - mapAt(map, targetSquare)]);
-      else
-        colour = addAlpha(options.tilingColours[(targetSquare[0] + targetSquare[1]) % options.tilingColours.length]);
+      let squareParity = (targetSquare[0] + targetSquare[1]) % options.floorColours.length;
+      // squareParity is NaN if targetSquare[0] + targetSquare[1] is not finite
+      colour = resetAlpha(options.floorColours[!isNaN(squareParity) ? squareParity : 0]);
       colour = darkenByDist(dist, colour, options);
     }
 
-    putPixel(ctx, col, row, colourToString(colour, options));
+    putPixel(ctx, col, row, colour, options);
   }
 }
 
@@ -158,31 +190,3 @@ function render (map, camera, screen, options) {
   }
 }
 
-window.onload = function () {
-  render(
-   [[ 1,  0,  1,  1,  1,  1,  1,  1],
-    [ 1,  0,  2,  0,  0,  0,  0,  1],
-    [ 1, -1, -1, -1, -2,  0,  0,  1],
-    [ 1,  0,  2, -2, -2,  0,  0,  1],
-    [ 1,  0,  1,  1,  0,  0,  0,  1],
-    [ 1,  0,  0,  1,  0,  0,  0,  1],
-    [ 1,  0,  0,  0,  0,  0,  0,  1],
-    [ 1,  1,  1,  1,  1,  1,  1,  1]],
-   {
-     pos: [1.1, 1.5],
-     dir: vnormalize([2, 3]),
-     fov: 90
-   },
-   document.getElementById("screen"),
-   {
-     viewDist: 8, // distance till stop of light
-     light: vnormalize([1, -2]), // the vector towards the light source
-     darkest: 0.5, 
-     wallColours: [[118, 131, 74], [156, 73, 65]],
-     floorColours: [[70, 146, 158], [190, 210, 179]],
-     tilingColours: [[196, 152, 83], [158, 112, 60]],
-     zeroColour: svtimes(0.5, [61, 83, 79]),
-     cyclindrical: false,
-     perpDist: true
-   });
-}
