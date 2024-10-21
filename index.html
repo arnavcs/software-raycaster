@@ -10,6 +10,7 @@
  <body>
   <noscript>Sorry, this webpage requires JavaScript.</noscript>
   <h1>Software Raycaster Playground</h1>
+  Made by <a href="https://arnavcs.github.io/">[Arnav Kumar]</a>. For more technical details and implementation, see the <a href="https://github.com/arnavcs/software-raycaster">{Github}</a>.
   <hr />
    Map width: <input type="number" id="map-width" value="10">
    Map height: <input type="number" id="map-height" value="10">
@@ -34,7 +35,7 @@
    Field of view (degrees): <input type="number" id="fov" value="90">
    View distance: <input type="number" id="view-dist" value="10">
   <hr />
-   Click a square to cycle through wall options (0 is no wall). Colours do not represent rendered wall colours.
+   Click a square to cycle through wall options (0 is no wall). Colours do not represent rendered wall colours, just wall type.
    <br />
    <table id="map"></table>
   <hr />
@@ -47,7 +48,7 @@
    <br />
    <input type="button" onclick="renderScene()" value="Render Scene">
   <hr />
-  <canvas id="screen" width="960" height="480"></canvas>
+  <canvas id="screen"></canvas>
  </body>
 </html>
 
